@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Chatbot</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #chat { border: 1px solid #080000ff; padding: 10px; height: 300px; overflow-y: auto; }
+    .msg { margin: 5px 0; }
+    .user { font-weight: bold; color: rgb(0, 0, 0); }
+    .bot { font-weight: bold; color: green; }
+  </style>
+</head>
+<body>
+  <h1>🤖 Chatbot</h1>
+  <div id="chat"></div>
+
+  <input id="entrada" type="text" placeholder="Digite sua mensagem..." style="width:80%;">
+  <button onclick="enviar()">Enviar</button>
+
+  <br><br>
+  <input type="file" id="pdfInput" />
+  <button onclick="enviarPdf()">Enviar PDF</button>
+
+<script>
+function enviarPdf() {
+    let fileInput = document.getElementById("pdfInput");
+    if (fileInput.files.length === 0) return;
+
+    // mostra aviso no chat
+    let chatDiv = document.getElementById("chat");
+    let msgId = "pdf-msg-" + Date.now(); // id único para a mensagem
+    chatDiv.innerHTML += `<div class="msg bot" id="${msgId}">📂 PDF recebido, processando resumo...</div>`;
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+
+    let formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    fetch("/upload", {
+        method: "POST",
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // substitui a mensagem anterior pelo resumo final
+        let msgDiv = document.getElementById(msgId);
+        if (msgDiv) {
+            msgDiv.innerHTML = `<b>📑 Resumo pronto:</b> ${data.resumo}`;
+        } else {
+            chatDiv.innerHTML += `<div class="msg bot"><b>📑 Resumo pronto:</b> ${data.resumo}</div>`;
+        }
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    })
+    .catch(err => {
+        console.error("❌ Erro no upload:", err);
+        let msgDiv = document.getElementById(msgId);
+        if (msgDiv) {
+            msgDiv.innerHTML = "[Erro ao processar PDF]";
+        } else {
+            chatDiv.innerHTML += `<div class="msg bot">[Erro ao processar PDF]</div>`;
+        }
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    });
+}
+</script>
+
+<script>
+async function enviar() {
+  let entrada = document.getElementById("entrada");
+  let texto = entrada.value.trim();
+  if (!texto) return;
+
+  let chatDiv = document.getElementById("chat");
+
+  // mostra no chat
+  chatDiv.innerHTML += `<div class="msg user">Você: ${texto}</div>`;
+  entrada.value = "";
+
+  try {
+    let resposta = await fetch("/bot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mensagem: texto })
+    });
+
+    let data = await resposta.json();
+    chatDiv.innerHTML += `<div class="msg bot">Bot: ${data.resposta}</div>`;
+  } catch (err) {
+    console.error("❌ Erro ao chamar /bot:", err);
+    chatDiv.innerHTML += `<div class="msg bot">[Erro ao falar com o servidor]</div>`;
+  }
+
+  // manter scroll no final
+  chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+</script>
+</body>
+</html>
+
